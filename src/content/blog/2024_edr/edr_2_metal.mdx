@@ -1,8 +1,10 @@
 ---
-author: Rio Ogino
-pubDatetime: 2024-01-13T20:00:00.000Z
 title: "Adventures in EDR Part 2: Metal"
-slug: edr_part_2
+slug: edr_2_metal
+pubDatetime: 2024-01-13T20:00:00.001Z
+description: >
+  Color spaces, transfer functions and everything else you need to know to
+  render EDR content in Metal.
 featured: true
 draft: false
 tags:
@@ -12,15 +14,12 @@ tags:
   - photos
   - swift
   - metal
-description: >
-  Color spaces, transfer functions and everything else you need to know before
-  rendering EDR content in Metal
 ---
 
 import BlogVideoPlayer from "./BlogVideoPlayer.svelte";
 
-In part 1, I covered the various ways of rendering and displaying EDR images in
-SwiftUI.
+In [part 1](./edr_1_photos), I covered the various ways of rendering and
+displaying EDR images in SwiftUI.
 Now in part 2, I go deeper into color spaces, transfer functions, and
 rendering EDR content in Metal.
 
@@ -49,7 +48,7 @@ BT.2020 is wider still (BT.2100 uses the same color space but supports HDR).
   [![A comparison of RGB gamuts of sRGB, P3, Rec2020, etc. using the CIE1931
   chromaticity
   diagram.](@assets/blog/2024/edr/CIE1931xy_gamut_comparison_of_sRGB_P3_Rec2020.svg)](https://commons.wikimedia.org/wiki/File:CIE1931xy_gamut_comparison_of_sRGB_P3_Rec2020.svg)
-  <figcaption>Visualization by [Myndex](https://commons.wikimedia.org/wiki/User:Myndex), [CC BY-SA 4.0 DEED](https://creativecommons.org/licenses/by-sa/4.0/deed.en)</figcaption>
+  <figcaption>Visualization by [Myndex](https://commons.wikimedia.org/wiki/User:Myndex), [CC BY-SA 4.0 DEED](https://creativecommons.org/licenses/by-sa/4.0/deed.en). Modified to partially support dark mode.</figcaption>
 </figure>
 
 If you want to learn more, David Gavian has a good blog post on [Display P3 and conversions to and from sRGB](http://endavid.com/index.php?entry=79).
@@ -62,7 +61,7 @@ is a function which maps an input signal into light intensity.
 Like with hearing, humans perceive brightness non-linearly: increasing the brightness
 by some fixed value will be more noticeable in dark areas compared to light areas.
 
-![Comparison between linear and gamma](@assets/blog/2024/edr/linear_gamma_comparison_linear_scale.png)
+![Comparison between linear and gamma](@assets/blog/2024/edr/linear_gamma_comparison_linear_scale.svg)
 
 Hence, if you have a limited bitdepth, 'spending' more on that budget on darker
 areas will reduce the amount of banding perceived.
@@ -80,7 +79,7 @@ Assuming a range and domain of `[0, 1]` (as is done under BT.2100):
 
 - Inputs in the range `[0.0, 0.5]` use a gamma function and map to a brightness of `[0, 1/12]`,
   where `1/12` is SDR white.
-- Inputs in the range `[0.5, 1.0] use a log function and map to `[1/12, 1]`.
+- Inputs in the range `[0.5, 1.0]` use a log function and map to `[1/12, 1]`.
 
 Hence, HLG is limited to a maximum brightness of 12 times SDR white. The iPhone
 15 Pro has a maximum brightness of 8 times SDR, so at least for now, HLG is
@@ -146,13 +145,13 @@ was intended for.
 According to this [WWDC 2022](https://developer.apple.com/videos/play/wwdc2022/10113/?time=755)
 session, HDR rendering in Metal is only supported by two pixel formats and a few color spaces:
 
-| `.rgba16Float`             | `.bgra10a2Unorm` |
-| -------------------------- | ---------------- |
-| `.extendedLinearSRGB`      | `.itur_709_PQ`   |
-| `.extendedLinearDisplayP3` | `.displayP3_PQ`  |
-| `.extendedLinearITUR_2020` | `.itur_2100_PQ`  |
-|                            | `.displayP3_HLG` |
-|                            | `.itur_2100_HLG` |
+| `.rgba16Float` (64-bit)    | `.bgra10a2Unorm` (32-bit) |
+| -------------------------- | ------------------------- |
+| `.extendedLinearSRGB`      | `.itur_709_PQ`            |
+| `.extendedLinearDisplayP3` | `.displayP3_PQ`           |
+| `.extendedLinearITUR_2020` | `.itur_2100_PQ`           |
+|                            | `.displayP3_HLG`          |
+|                            | `.itur_2100_HLG`          |
 
 ### `.rgba16Float`
 
@@ -213,47 +212,47 @@ is done 'automatically' as the headroom ramp-up takes time).
 
 I finally ended up with the following shader code.
 
-```metal
+```glsl
 // Constants for hybrid-log-gamma transform, as defined by Rec. 2100
 // See: https://en.wikipedia.org/wiki/Hybrid_log%E2%80%93gamma
 #define hlgA (0.17883277)
 #define hlgB (1 - 4 * hlgA)
 #define hlgC (0.5 - hlgA * log(4 * hlgA))
 
-/// sRGB gamma function
-float srgbEOTF(float E) {
-    // https://www.color.org/srgb.pdf
-    if (E <= 0.04045) {
-        return E / 12.92;
-    } else {
-        return pow((E + 0.055) / 1.055, 2.4);
-    }
-}
-
 /// Hybrid-log-gamma transform, as defined by Rec. 2100
 float hlgOETF(float O) {
-    // Rec. 2100 HLG curve.
-    // Points (0, 0), (0,5, 1/12) (reference white), (1, 1) (12x reference white)
+  // Rec. 2100 HLG curve.
+  // Points (0, 0), (0,5, 1/12) (reference white), (1, 1) (12x reference white)
 
-    if (O < 1.0 / 12.0) {
-        return sqrt(3 * O);
-    } else {
-        return hlgA * log(12.0 * O - hlgB) + hlgC;
-    }
+  if (O < 1.0 / 12.0) {
+    return sqrt(3 * O);
+  } else {
+    return hlgA * log(12.0 * O - hlgB) + hlgC;
+  }
 }
 
 /// Inverse hybrid-log gamma transform, as defined by Rec. 2100
 float hlgEOTF(float E) {
-    if (E < 0.5) {
-        return pow(E, 2) / 3.0;
-    } else {
-        return (exp((E - hlgC) / hlgA) + hlgB) / 12.0;
-    }
+  if (E < 0.5) {
+    return pow(E, 2) / 3.0;
+  } else {
+    return (exp((E - hlgC) / hlgA) + hlgB) / 12.0;
+  }
+}
+
+/// sRGB gamma function
+float srgbEOTF(float E) {
+  // https://www.color.org/srgb.pdf
+  if (E <= 0.04045) {
+    return E / 12.92;
+  } else {
+    return pow((E + 0.055) / 1.055, 2.4);
+  }
 }
 
 float sdrToEdr(float sample, float edrHeadroom) {
-    // Linearize the source sample
-    float linearized = srgbEOTF(sample);
+  // Linearize the source sample
+  float linearized = srgbEOTF(sample);
 
   // If headroom=1, map white to `0.5`
   // If headroom=12, map white to `1.0`

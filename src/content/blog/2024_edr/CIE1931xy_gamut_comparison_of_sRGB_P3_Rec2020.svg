@@ -28,27 +28,6 @@
      inkscape:current-layer="svg1045" />
   <title
      id="title781">CIE 1931 Chromaticity Plot • RGB Gamut Comparison</title>
-   <defs>
-      <style>
-         svg {
-           color-scheme: light dark;
-         }
-         .fill-foreground {
-            fill: #000;
-         }
-         .stroke-foreground {
-            stroke: #000;
-         }
-         @media (prefers-color-scheme:dark) {
-           .fill-foreground {
-               fill: #FFF;
-           }
-           .stroke-foreground {
-               stroke: #FFF;
-           }
-         }
-       </style>
-   </defs>
   <defs
      id="defs900">
     <path
@@ -272,7 +251,7 @@
      id="path902"
      style="display:inline" />
   <path
-     class="stroke-foreground"
+     stroke="#000000"
      stroke-width="2"
      stroke-linecap="square"
      fill="none"
@@ -1151,7 +1130,7 @@
       </g>
     </g>
     <g
-       class="fill-foreground"
+       fill="#000000"
        id="g1041"
        style="display:inline"
        inkscape:label="gridLabels">

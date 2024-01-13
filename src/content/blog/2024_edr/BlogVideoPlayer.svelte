@@ -2,6 +2,11 @@
   export let source: { src: string, type: string }[]
   export let description: string;
   export let aspectRatio: number = 1.0;
+
+  export let autoplay: boolean = true;
+  export let controls: boolean = true;
+  export let muted: boolean = true;
+  export let loop: boolean = false;
 </script>
 <style>
   video {
@@ -11,7 +16,13 @@
   }
 </style>
 <figure {...$$restProps}>
-  <video controls autoplay style="--aspect-ratio: {aspectRatio}">
+  <video
+    style="--aspect-ratio: {aspectRatio}"
+    autoplay={autoplay}
+    controls={controls}
+    muted={muted}
+    loop={loop}
+  >
     {#each source as track}
       <source {...track}/>
     {/each}

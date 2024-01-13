@@ -101,6 +101,8 @@
     display: flex;
     justify-content: center;
     margin: 0;
+    /* need this or there is no white space when an <a> element begins */
+    white-space-collapse: break-spaces;
   }
 
   /* ===== scrollbar ===== */
