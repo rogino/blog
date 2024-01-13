@@ -90,6 +90,19 @@
     @apply hidden;
   }
 
+  /* center figure caption, reduce space between image and caption */
+  .prose figure img {
+    margin-bottom: 0;
+  }
+  .prose figure video {
+    margin-bottom: 1em;
+  }
+  .prose figcaption {
+    display: flex;
+    justify-content: center;
+    margin: 0;
+  }
+
   /* ===== scrollbar ===== */
   html {
     overflow-y: scroll;

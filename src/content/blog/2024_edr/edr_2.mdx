@@ -1,0 +1,291 @@
+---
+author: Rio Ogino
+pubDatetime: 2024-01-13T20:00:00.000Z
+title: "Adventures in EDR Part 2: Metal"
+slug: edr_part_2
+featured: true
+draft: false
+tags:
+  - ios
+  - edr
+  - hdr
+  - photos
+  - swift
+  - metal
+description: >
+  Color spaces, transfer functions and everything else you need to know before
+  rendering EDR content in Metal
+---
+
+import BlogVideoPlayer from "./BlogVideoPlayer.svelte";
+
+In part 1, I covered the various ways of rendering and displaying EDR images in
+SwiftUI.
+Now in part 2, I go deeper into color spaces, transfer functions, and
+rendering EDR content in Metal.
+
+Back in part 1, I mentioned attempting to render RAW images in Metal since I couldn't
+figure out how to get EDR working until I revisited it while writing this blog post.
+As I already use Metal to render the viewfinder's video preview, I started by
+attempting to render this SDR content in EDR, and quickly realized that this
+could be a useful way of boosting brightness if the user was in a very bright environment.
+
+The Metal RAW image viewer was shelved due to performance issues and replaced
+with the native SwiftUI implementation, and the EDR live preview ended up being
+almost useless. Despite this, I finished the EDR live preview anyway - mostly
+because I had also spent a lot of time on this.
+
+## Color Spaces and Transfer Functions
+
+Very roughly, a color space describes a way of mapping some input - often RGB values,
+into a color that can be seen by human eyeballs.
+
+sRGB is the most common color space you will come across, but recent Apple displays
+and cameras now use [Display P3](https://developer.apple.com/videos/play/wwdc2017/821/),
+which supports a [wider color gamut](https://webkit.org/blog-files/color-gamut/).
+BT.2020 is wider still (BT.2100 uses the same color space but supports HDR).
+
+<figure>
+  [![A comparison of RGB gamuts of sRGB, P3, Rec2020, etc. using the CIE1931
+  chromaticity
+  diagram.](@assets/blog/2024/edr/CIE1931xy_gamut_comparison_of_sRGB_P3_Rec2020.svg)](https://commons.wikimedia.org/wiki/File:CIE1931xy_gamut_comparison_of_sRGB_P3_Rec2020.svg)
+  <figcaption>Visualization by [Myndex](https://commons.wikimedia.org/wiki/User:Myndex), [CC BY-SA 4.0 DEED](https://creativecommons.org/licenses/by-sa/4.0/deed.en)</figcaption>
+</figure>
+
+If you want to learn more, David Gavian has a good blog post on [Display P3 and conversions to and from sRGB](http://endavid.com/index.php?entry=79).
+
+### Transfer Functions
+
+A transfer function, also known as an _electro-optical transfer function_ (EOTF),
+is a function which maps an input signal into light intensity.
+
+Like with hearing, humans perceive brightness non-linearly: increasing the brightness
+by some fixed value will be more noticeable in dark areas compared to light areas.
+
+![Comparison between linear and gamma](@assets/blog/2024/edr/linear_gamma_comparison_linear_scale.png)
+
+Hence, if you have a limited bitdepth, 'spending' more on that budget on darker
+areas will reduce the amount of banding perceived.
+
+The sRGB gamma transfer function, [roughly](https://www.color.org/srgb.pdf) `γ=2.2`,
+raises values to the power of 2.2 to convert pixel values to brightness.
+DisplayP3 applies the same EOTF function as sRGB, while BT.2020 uses the same
+as BT.709 (the standard for HD TV).
+
+For displaying HDR content (BT.2100 or Display P3), there are two main contenders:
+Hybrid-log gamma (HLG) and perceptual quantization (PQ).
+
+Hybrid-log gamma, as the name suggests, uses both a gamma and a log function.
+Assuming a range and domain of `[0, 1]` (as is done under BT.2100):
+
+- Inputs in the range `[0.0, 0.5]` use a gamma function and map to a brightness of `[0, 1/12]`,
+  where `1/12` is SDR white.
+- Inputs in the range `[0.5, 1.0] use a log function and map to `[1/12, 1]`.
+
+Hence, HLG is limited to a maximum brightness of 12 times SDR white. The iPhone
+15 Pro has a maximum brightness of 8 times SDR, so at least for now, HLG is
+sufficient to cover the capabilities of iPhone displays.
+
+HLG is backwards-compatible with BT.709 (which is similar to but not the same as
+sRGB in ways I don't understand): simply ignore the top half of the range,
+clipping it to white.
+
+If you encode SDR content with HLG, you effectively lose one bit of bitdepth.
+However, you will at minimum have 10-bits, so SDR content will cover 9-bits;
+still more than the 8-bits typically used for SDR content.
+
+Perceptual quantization is the transfer function I couldn't get working, so I can't
+explain much. It is used by HDR10 and has a massive maximum luminance of
+10,000 nits - in comparison, monitors are in the range of 300–500 nits, and the
+iPhone 15 Pro goes up to 2,000 nits. The transfer function maps directly to
+output luminance and requires additional metadata if you want it to be properly
+tone-mapped.
+
+## EDR in Metal
+
+### Headroom
+
+If you want to support HDR rendering, you should first determine if the display even supports EDR.
+
+This is pretty simple: check if the screen's potential EDR headroom is larger than `1`:
+
+```swift
+self.view.window?.screen.potentialEDRHeadroom
+```
+
+_Headroom_ is the multiple beyond SDR white that the display can output
+a value of `2` means that, under optimum conditions, the content can be
+rendered twice as bright as SDR white.
+
+If there is headroom, you can enable EDR rendering by using:
+
+```swift
+CAMetalLayer.wantsExtendedDynamicRangeContent = true
+```
+
+Once set, the `UIScreen.currentEDRHeadroom` ramps up over a few seconds, but
+there is no guarantee that it will reach the potential headroom. This varies,
+most notably depending on the current (SDR) brightness:
+**when at maximum brightness, the headroom is likely to be very small**.
+
+The following table shows the maximum potential headroom, and then the
+headrooms observed when the device was at maximum brightness:
+
+| Device        | Potential headroom | Min headroom |
+| ------------- | ------------------ | ------------ |
+| iPhone Xs     | 4                  | ~1.2         |
+| iPhone 11     | 2                  | ~1           |
+| iPhone 15 Pro | 8                  | ~2           |
+
+Remember how human vision is not linear? A headroom of even 2x was barely
+noticeable when in a bright environment, which is the environment the feature
+was intended for.
+
+### Color Space and Pixel Format
+
+According to this [WWDC 2022](https://developer.apple.com/videos/play/wwdc2022/10113/?time=755)
+session, HDR rendering in Metal is only supported by two pixel formats and a few color spaces:
+
+| `.rgba16Float`             | `.bgra10a2Unorm` |
+| -------------------------- | ---------------- |
+| `.extendedLinearSRGB`      | `.itur_709_PQ`   |
+| `.extendedLinearDisplayP3` | `.displayP3_PQ`  |
+| `.extendedLinearITUR_2020` | `.itur_2100_PQ`  |
+|                            | `.displayP3_HLG` |
+|                            | `.itur_2100_HLG` |
+
+### `.rgba16Float`
+
+`.rgba16Float` uses `half`s for each component, requiring 64-bits per pixel,
+doubling the storage requirements compared to a standard 8-bit texture.
+
+The `extendedLinear*` color spaces map `[0, 1]` to SDR content, with anything
+beyond that being in HDR land.
+As such, normalized integer pixel formats can't support these linear color spaces.
+
+Quantization error is not an issue; one good thing about floating point formats
+is that accuracy is high for small values and decreases with magnitude, mirroring
+the behavior of visual perception.
+
+While double the size of `.bgra10a2Unorm`, working in linear space is very easy.
+For example, to map SDR content in `[0, 1]` to HDR, you can simply multiply the
+content by the `currentEDRHeadroom` value. Just remember to linearize the input
+first if necessary.
+
+### `.bgra10a2Unorm`
+
+`bgra10a2Unorm` stores each component as 10-bit integers but are interpreted as
+normalized values - as a linear mapping to and from `[0, 1]`.
+
+It only needs 32-bits per pixel - the same as a standard 8-bit texture, although
+you only have 2 bits of alpha. It also seems like `.bgr10_xr` can be also be
+used, although this format has no alpha channel.
+
+If the display's headroom is less than that of the content (or the color space?),
+highlights can get clipped. _Tone-mapping_ is used to reduce the dynamic range
+of the content to match that of the display in a natural-looking way; otherwise, you
+may end up with a significant portion of the highlights getting clipped.
+
+iOS supports this by setting the `CAMetalLayer.edrMetadata` property.
+For HLG, there an easy `.hlg` option, but for PQ, we need to use `.hdr10()`
+options, which require a bunch of metadata which I had no idea how to get.
+
+Even if I set `edrMetadata` to `nil` (the default), PQ directly outputs luminance
+values, not brightness relative to SDR white. As there doesn't seem to be any
+way of determining the current display luminance, I gave up on working on this.
+
+So PQ it was; I used `displayP3_PQ` as the iOS camera supports capture in the
+[P3 color space](https://developer.apple.com/documentation/avfoundation/avcapturecolorspace/p3_d65).
+
+In the shader, the process is as follows:
+
+- I receive an image in the DisplayP3 color space
+- I apply the sRGB/Display P3 gamma transform (EOTF), linearizing the image
+- I apply the HLG _OETF_ transform
+
+Then, at some point along the chain, the HLG _EOTF_ transform will be applied,
+re-linearizing the image for display.
+
+While I initially used the `.hlg` tone-mapping and simply mapped the SDR content
+into the full HLG range, I switched to using manual tone-mapping so that I could
+smoothly transition down from EDR to SDR with no noticeable jump (SDR to EDR
+is done 'automatically' as the headroom ramp-up takes time).
+
+I finally ended up with the following shader code.
+
+```metal
+// Constants for hybrid-log-gamma transform, as defined by Rec. 2100
+// See: https://en.wikipedia.org/wiki/Hybrid_log%E2%80%93gamma
+#define hlgA (0.17883277)
+#define hlgB (1 - 4 * hlgA)
+#define hlgC (0.5 - hlgA * log(4 * hlgA))
+
+/// sRGB gamma function
+float srgbEOTF(float E) {
+    // https://www.color.org/srgb.pdf
+    if (E <= 0.04045) {
+        return E / 12.92;
+    } else {
+        return pow((E + 0.055) / 1.055, 2.4);
+    }
+}
+
+/// Hybrid-log-gamma transform, as defined by Rec. 2100
+float hlgOETF(float O) {
+    // Rec. 2100 HLG curve.
+    // Points (0, 0), (0,5, 1/12) (reference white), (1, 1) (12x reference white)
+
+    if (O < 1.0 / 12.0) {
+        return sqrt(3 * O);
+    } else {
+        return hlgA * log(12.0 * O - hlgB) + hlgC;
+    }
+}
+
+/// Inverse hybrid-log gamma transform, as defined by Rec. 2100
+float hlgEOTF(float E) {
+    if (E < 0.5) {
+        return pow(E, 2) / 3.0;
+    } else {
+        return (exp((E - hlgC) / hlgA) + hlgB) / 12.0;
+    }
+}
+
+float sdrToEdr(float sample, float edrHeadroom) {
+    // Linearize the source sample
+    float linearized = srgbEOTF(sample);
+
+  // If headroom=1, map white to `0.5`
+  // If headroom=12, map white to `1.0`
+  float maxOut = 0.5 + 0.5 * ((edrHeadroom - 1.0) / (12.0 - 1.0));
+
+  // Use the EOTF to transform output pixel values into linear brightness.
+  // This can be moved onto the CPU - calculate on every frame
+  float maxValue = hlgEOTF(maxOut);
+
+  // Apply the inverse EOTF; the OETF
+  // Multiply by maxValue such that `1` will map to `edrHeadroom`
+  return hlgOETF(linearized * maxValue);
+}
+```
+
+## Conclusion
+
+While this didn't end up being a useful feature, it was fun to dive deep into
+the world of color science and learn a little about the complexity of color
+management, representation and encoding.
+
+<BlogVideoPlayer
+  source={[
+    { src: "/assets/blog/2024/edr/edr_side_by_side.mp4", type: "video/mp4" },
+  ]}
+  description="Video showing EDR in action. On the left is a phone at low brightness; the
+image gets significantly brighter and the UI begins to look grey in comparison.
+On the right is a phone at maximum brightness; the image gets a tiny bit brighter."
+  aspectRatio={1}
+/>
+
+If you've enjoyed reading this, go ahead and download
+[Composure Camera](https://composure.rioogino.com) for free,
+increase your screen brightness to the max, and when you see the EDR badge,
+think, 'damn, he spent all this time on _this_?'

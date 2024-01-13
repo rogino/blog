@@ -1,0 +1,231 @@
+---
+author: Rio Ogino
+pubDatetime: 2024-01-13T20:00:00.000Z
+title: "Adventures in EDR Part 1: Displaying EDR Photos in iOS 17"
+slug: edr_part_1
+featured: true
+draft: false
+tags:
+  - ios
+  - edr
+  - hdr
+  - photos
+  - swift
+  - swiftui
+description: EDR specifications and displaying EDR images in iOS 17 with SwiftUI
+---
+
+import BlogVideoPlayer from "./BlogVideoPlayer.svelte";
+
+If you have a recent iPhone and open Photos.app, you'll probably notice that
+some images seem to 'pop'.
+Look closer, and you'll realize that the rest of the UI now looks grey:
+
+<BlogVideoPlayer
+  source={[{ src: "/assets/blog/2024/edr/edr_photos.mp4", type: "video/mp4" }]}
+  description="Video of the Photos app showing a photo of a sunset, with the sun getting brighter as EDR kicks in."
+  aspectRatio={16 / 9}
+/>
+
+This is **extended dynamic range** in action; Apple's method of seamlessly
+displaying HDR content alongside SDR content.
+
+In building my camera app [Composure Camera](https://composure.rioogino.com/),
+I wanted to do the same thing, and ended up doing a deep dive into the world of EDR.
+
+In part 1, I cover how to display and render EDR photos in SwiftUI/UIKit while in
+part 2, I cover EDR rendering with Metal and go deep into color spaces and transfer functions.
+
+## Gain Map HDR
+
+Gain map HDR is a backwards-compatible way of supporting EDR in photos which
+embeds a separate _gain map_ image alongside the primary SDR image. iPhones have
+supported this since 2020, and this is the most common form of EDR photos you will
+see today.
+
+The gain map is a lower-resolution, single-channel bitmap which is used to adjust
+the brightness of an image. Software that does not support this will simply ignore
+it, ensuring that the photo can be rendered in SDR without any issues.
+
+This technique effectively increases the bitdepth of the image, reducing
+the banding that would otherwise make displaying 8-bit images -- the maximum
+bitdepth supported by JPEG -- in HDR unusable.
+
+Since DNG (RAW) files embed JPEG previews and ISO HDR images cannot be supported
+by JPEG files, any RAW or ProRAW files you take will use this technique for the
+foreseeable future.
+
+Additionally, even normal HEIC files captured by Apple devices use this type of
+EDR image. Thus, if you want to support EDR for photos taken on iPhones, you
+will have to implement support for this.
+
+Starting in iOS 17, Apple has finally provided an
+[easy](https://gist.github.com/kiding/fa4876ab4ddc797e3f18c71b3c2eeb3a)
+API to render these images.
+
+As described at the very end of [this WWDC session](https://developer.apple.com/videos/play/wwdc2023/10181/?time=1080),
+we can now use:
+
+```swift
+guard let ciImage = CIImage(data: data, options: [.expandToHDR: true]) else { return }
+
+// And now render to a bitmap
+guard let cgImage = ciCto ontext.createCGImage(
+  ciImage,
+  from: ciImage.extent,
+  // Half the size of .RGBA16. Don't use 8-bit formats
+  format: .RGB10,
+  // Can use any extended, extendedLinear, PQ, or HLG format
+  colorSpace: .init(name: CGColorSpace.displayP3_PQ)
+) else { return }
+```
+
+in order to render image data to an HDR texture. I go into more detail on color
+spaces in part 2.
+
+This process is more expensive than the standard `ciContext.createCGImage(_:from)`
+call, even if the image does not contain a gain map. On 12MP ProRAW JPEG preview
+(which contains a gain map), it took ~30ms compared to 3ms to render on an
+iPhone Xs.
+
+To detect if the image contains an HDR gain map, we can check the image's
+EXIF metadata to determine if it has a
+[headroom value](https://developer.apple.com/documentation/appkit/images_and_pdf/applying_apple_hdr_effect_to_your_photos).
+This metadata is embedded in Apple's [undocumented](https://github.com/anteo/edit-hdr-gamma)
+EXIF manufacturer tags, so it seems unlikely that this format will see use in
+non-Apple devices.
+
+Note that reading the EXIF metadata with `CGImageSourceCreateWithData` and
+`CGImageSourceCopyPropertiesAtIndex` also takes a few milliseconds.
+
+Once rendered, simply wrap the `CGImage` in an `UIImage` before displaying it
+in SwiftUI with the new iOS 17 View modifier:
+
+```swift
+Image(uiImage: uiImage)
+  .allowedDynamicRange(.high)
+```
+
+UIKit also has an equivalent property: `UIImageView.preferredImageDynamicRange`.
+
+Apple is [standardizing](https://developer.apple.com/documentation/appkit/images_and_pdf/applying_apple_hdr_effect_to_your_photos)
+this under [ISO/NP 21496-1](https://www.iso.org/standard/86775.html).
+However, **Adobe also has its own separate, incompatible gain map
+[specification](https://helpx.adobe.com/nz/camera-raw/using/gain-map.html)**
+which is used in Lightroom for HDR exports.
+From their [support page](https://helpx.adobe.com/nz/lightroom-cc/using/hdr-ios.html),
+it seems that Chrome desktop can view these images. As of iOS 17, Core Image can not,
+but the specification is open and so it seems feasible for someone to implement this.
+
+## ISO HDR
+
+[https://developer.apple.com/videos/play/wwdc2023/10181/](ISO HDR)
+is the newer method devised by Apple. Currently being standardized as
+[ISO/TS 22028-5:2023](https://www.iso.org/standard/86775.html), this gets rid
+of the separate gain map and natively encodes the image at a minimum bitdepth
+of 10 bits.
+
+It requires the use of an HDR transfer function:
+[hybrid log-gamma](https://en.wikipedia.org/wiki/Hybrid_log%E2%80%93gamma) or
+[perceptual quantization](https://en.wikipedia.org/wiki/Perceptual_quantizer)
+and a wide colorspace: the BT.2100 (or equivalently, BT.2020) color primaries.
+There are also a bunch of metadata requirements which I don't understand.
+
+The 10-bit requirement means that JPEGs cannot support this method, and Apple
+devices capture images in Display P3, not BT.2100. As such, until Apple switches
+to using this color space for the camera, this method will likely not see widespread use.
+
+Apple's [HDR sample app](https://developer.apple.com/documentation/uikit/images_and_pdf/supporting_hdr_images_in_your_app)
+saves images in the BT.2100 color space, but I haven't otherwise encountered
+any images which use ISO HDR.
+
+However, the same is not true of video -- HDR videos captured on iPhone, as well as any
+professional HDR content (movies, TV etc.) you see will be using BT.2100 with
+PQ/HLG. As such, it is not a stretch that Apple will switch photos to using this
+color space in the future, especially as Photos.app already supports
+converting images to JPEG for compatibility.
+
+{/*
+This would, however, lead to the loss of backwards compatibility: if you have
+tried to play HDR video on non-Apple devices or older software, it is likely that
+you have seen these videos play looking washed out or plain wrong: the software
+*must* support the color space and transfer function to display the content
+correctly.
+*/}
+
+Supporting these images in iOS 17 is easier than supporting tone-mapped HDR:
+just use `UIImage(data: data)`, or even just `Image(name: )` alongside the
+aforementioned `.allowedDynamicRange` modifier.
+
+## RAW
+
+RAW images (both Bayer RAW and ProRAW) can be rendered using
+[`CIRAWFilter`](https://developer.apple.com/videos/play/wwdc2021/10160/?time=1108).
+
+Rendering these images in EDR requires only a few minor modifications:
+
+```swift
+guard let rawFilter = CIRAWFilter(imageData: data, identifierHint: uniformTypeIdentifier) else {
+    return nil
+}
+
+// https://developer.apple.com/videos/play/wwdc2021/10160/?time=1108
+rawFilter.baselineExposure      = 0.0
+rawFilter.shadowBias            = 0.0
+rawFilter.boostAmount           = 0.0
+rawFilter.localToneMapAmount    = 0.0
+
+// Must be true for EDR
+rawFilter.isGamutMappingEnabled = true
+rawFilter.extendedDynamicRangeAmount = 1.0
+
+let colorSpace = CGColorSpace(CGColorSpace.displayP3_PQ)!
+let context = CIContext(options: [.outputColorSpace: colorSpace])
+
+guard let outputImage = rawFilter.outputImage,
+      let cgImage = context.createCGImage(
+        outputImage,
+        from: outputImage.extent,
+        format: RGB10,
+        colorSpace: colorSpace
+      ) else { return }
+```
+
+`isGamutMappingEnabled` must be true - when false, the image gets rendered in
+linear space and is limited to SDR.
+
+Before realizing this, I spent a long time attempting to render to a Metal texture,
+which required creating an EDR Metal pipeline - something covered in part 2.
+This ended up not working due to performance issues - for whatever reason,
+`CIContext.render(_:to:commandBuffer:bounds:colorSpace:)` would sometimes take
+upwards of 30 second to render a 48MP ProRAW MAX image, and the frame rate was too
+low to be usable.
+
+I picked the `displayP3_PQ` color space in this example and although it seems to work,
+I'm not exactly sure why: in the documentation for
+[`allowedDynamicRange(\_:)](<https://developer.apple.com/documentation/swiftui/image/alloweddynamicrange(_:)>),
+it implies that the image must have an HDR color space (i.e. BT.2100).
+
+If `displayP3_PQ` didn't work, I would have assumed that EDR support for RAW
+(as well as gain map HDR, which also works with P3) is achieved by
+converting the color space to BT.2100 and embedding the necessary metadata
+for EDR.
+
+However, the fact that this does work with Display P3 means that this is
+not the case. Maybe Apple is ignoring its own specification and supporting
+EDR for other color spaces?
+
+## Conclusion
+
+Although iOS 17 now finally introduces native support for displaying EDR images,
+we are still in the early days of this technology with three separate ways of
+supporting EDR. Given that trillions of iPhone photos have been captured with
+Apple's HDR gain map technique, this will be the primary type of EDR you should
+support today.
+
+Adobe's version, which has an open specification and lack of proprietary EXIF tags,
+will likely see more widespread adoption in the future. As for ISO HDR,
+supporting it is 'free' in iOS 17 with SwiftUI/UIKit, but it will likely take
+many years before we see any significant adoption.
+
+Next up in part 2, I cover my misadventures in EDR rendering in Metal.
