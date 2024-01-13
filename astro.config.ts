@@ -6,6 +6,8 @@ import remarkCollapse from "remark-collapse";
 import sitemap from "@astrojs/sitemap";
 import { SITE } from "./src/config";
 
+import svelte from "@astrojs/svelte";
+
 // https://astro.build/config
 export default defineConfig({
   site: SITE.website,
@@ -14,6 +16,7 @@ export default defineConfig({
       applyBaseStyles: false,
     }),
     react(),
+    svelte(),
     sitemap(),
   ],
   markdown: {
