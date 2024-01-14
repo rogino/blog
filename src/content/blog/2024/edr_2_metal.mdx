@@ -1,5 +1,5 @@
 ---
-title: "Adventures in EDR Part 2: Metal"
+title: "Adventures in EDR, Part 2: Metal"
 pubDatetime: 2024-01-13T20:00:00.000Z
 description: >
   Color spaces, transfer functions and everything else you need to know to
@@ -17,7 +17,7 @@ tags:
 
 import BlogVideoPlayer from "@components/BlogVideoPlayer.svelte";
 
-In [part 1](./edr_1_photos), I covered the various ways of rendering and
+In [part 1](/posts/2024/edr_1_photos), I covered the various ways of rendering and
 displaying EDR images in SwiftUI.
 Now in part 2, I go deeper into color spaces, transfer functions, and
 rendering EDR content in Metal.
@@ -280,11 +280,12 @@ management, representation and encoding.
   ]}
   description="Video showing EDR in action. On the left is a phone at low brightness; the
 image gets significantly brighter and the UI begins to look grey in comparison.
-On the right is a phone at maximum brightness; the image gets a tiny bit brighter."
+On the right is a phone at maximum brightness; the image gets a tiny bit brighter.
+Note that EDR is fully automatic on release builds, enabling itself only when at max brightness.
+"
   aspectRatio={1}
 />
 
 If you've enjoyed reading this, go ahead and download
-[Composure Camera](https://composure.rioogino.com) for free,
-increase your screen brightness to the max, and when you see the EDR badge,
-think, 'damn, he spent all this time on _this_?'
+[Composure Camera](https://composure.rioogino.com) for free and be underwhelmed
+when you see the EDR badge appear.

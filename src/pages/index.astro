@@ -9,55 +9,30 @@ import Card from "@components/Card.svelte";
 import Socials from "@components/Socials.astro";
 import getSortedPosts from "@utils/getSortedPosts";
 import { SOCIALS } from "@config";
+import PostTitleAndContent from "@components/PostTitleAndContent.astro";
+
+import { Image } from "astro:assets";
+import composureMarketingImage from "@assets/blog/2023/og_composure.jpg";
 
 const posts = await getCollection("blog");
 
 const sortedPosts = getSortedPosts(posts);
-// const featuredPosts = sortedPosts.filter(({ data }) => data.featured);
+const featuredPosts = sortedPosts.filter(({ data }) => data.featured);
 
-const socialCount = SOCIALS.filter(social => social.active).length;
 ---
 
 <Layout>
   <Header />
   <main id="main-content">
+
     <section id="hero">
-      <h1>Mingalaba</h1>
-
-      <p>
-        AstroPaper is a minimal, responsive, accessible and SEO-friendly Astro
-        blog theme. This theme follows best practices and provides accessibility
-        out of the box. Light and dark mode are supported by default. Moreover,
-        additional color schemes can also be configured.
-      </p>
-      <p>
-        Read the blog posts or check
-        <LinkButton
-          className="underline decoration-dashed underline-offset-4 hover:text-skin-accent"
-          href="https://github.com/satnaing/astro-paper#readme"
-        >
-          README
-        </LinkButton> for more info.
-      </p>
-      {
-        // only display if at least one social link is enabled
-        socialCount > 0 && (
-          <div class="social-wrapper">
-            <div class="social-links">Social Links:</div>
-            <Socials />
-          </div>
-        )
-      }
+      <h1>A blog on iOS development and unrelated topics</h1>
     </section>
-
-    <Hr />
-
-    <!--
     {
       featuredPosts.length > 0 && (
         <>
           <section id="featured">
-            <h2>Featured</h2>
+            <h2>Featured Posts</h2>
             <ul>
               {featuredPosts.map(({ data, slug }) => (
                 <Card
@@ -72,8 +47,14 @@ const socialCount = SOCIALS.filter(social => social.active).length;
         </>
       )
     }
-    -->
 
+    {sortedPosts.length && <div>
+    <h2></h2>
+    <section class="most-recent-post-section">
+      <PostTitleAndContent post={sortedPosts[0]} />
+    </section>
+    </div>
+    }
     <section id="recent-posts">
       <h2>Recent Posts</h2>
       <ul>
@@ -111,16 +92,10 @@ const socialCount = SOCIALS.filter(social => social.active).length;
 <style>
   /* ===== Hero Section ===== */
   #hero {
-    @apply pb-6 pt-8;
+    @apply pt-2;
   }
   #hero h1 {
-    @apply my-4 inline-block text-3xl font-bold sm:my-8 sm:text-5xl;
-  }
-  #hero .rss-link {
-    @apply mb-6;
-  }
-  #hero .rss-icon {
-    @apply mb-2 h-6 w-6 scale-110 fill-skin-accent sm:mb-3 sm:scale-125;
+    @apply mb-4 inline-block text-3xl;
   }
   #hero p {
     @apply my-2;
@@ -135,7 +110,7 @@ const socialCount = SOCIALS.filter(social => social.active).length;
   /* ===== Featured & Recent Posts Sections ===== */
   #featured,
   #recent-posts {
-    @apply pb-6 pt-12;
+    @apply pb-6 pt-4;
   }
   #featured h2,
   #recent-posts h2 {
@@ -144,4 +119,9 @@ const socialCount = SOCIALS.filter(social => social.active).length;
   .all-posts-btn-wrapper {
     @apply my-8 text-center;
   }
+
+  .most-recent-post-section {
+    @apply mx-auto w-full max-w-3xl px-4 pt-4;
+  }
+
 </style>

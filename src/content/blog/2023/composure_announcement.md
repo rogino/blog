@@ -21,7 +21,7 @@ _This post is an edited and expanded version of my
 I made my first app - a RAW camera! As of today, it is available on the
 [App Store](https://apps.apple.com/us/app/composure-camera/id6471194287)!
 
-![Screenshot of the Composure app, showing a lighthouse in the viewfinder](@assets/blog/2023/composure_1.0.0_screenshot_lighthouse.png)
+![Marketing image showing the Composure camera app"](@assets/blog/2023/og_composure.jpg)
 
 It's completely free - my goal was to release an app by the end of the year, so
 there's no business model. And despite a few App Store Review rejections -
@@ -87,8 +87,8 @@ I liked: a mix of a human eye and a camera iris.
 I didn't have any luck with refining it further, so I began drawing it as a
 vector in Inkscape, making tweaks to the design as I went. Inkscape on macOS
 is... not good. I had to use the Windows version and use screen sharing to draw
-it, but I am happy with the final outcome. Realistically, it is likely as good
-as I can make on my own without hiring a professional.
+it, but I am happy with the final outcome. Realistically, it is as good as I
+can make on my own without hiring a professional.
 
 <figure>
 

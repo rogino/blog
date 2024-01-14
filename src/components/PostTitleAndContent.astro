@@ -1,0 +1,53 @@
+---
+import Tag from "@components/Tag.astro";
+import Datetime from "@components/Datetime.svelte";
+import type { CollectionEntry } from "astro:content";
+import { slugifyStr } from "@utils/slugify";
+import ShareLinks from "@components/ShareLinks.astro";
+import { SITE } from "@config";
+
+export interface Props {
+  post: CollectionEntry<"blog">;
+}
+
+const { post } = Astro.props;
+
+const {
+  title,
+  author,
+  description,
+  ogImage,
+  canonicalURL,
+  pubDatetime,
+  modDatetime,
+  tags,
+} = post.data;
+
+const { Content } = await post.render();
+
+const url = `/posts/${post.slug}`
+
+---
+
+  <a href={url} class="hover:text-skin-accent">
+    <h1 transition:name={slugifyStr(title)} class="post-title">{title}</h1>
+  </a>
+  <Datetime
+    pubDatetime={pubDatetime}
+    modDatetime={modDatetime}
+    size="lg"
+    className="my-2"
+  />
+  <article id="article" role="article" class="prose mx-auto mt-8 max-w-3xl">
+    <Content />
+  </article>
+
+  <ul class="my-8">
+    {tags.map(tag => <Tag tag={slugifyStr(tag)} />)}
+  </ul>
+
+<style>
+  .post-title {
+    @apply text-2xl font-semibold;
+  }
+</style>

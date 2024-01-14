@@ -5,12 +5,14 @@ import socialIcons from "@assets/socialIcons";
 
 export interface Props {
   centered?: boolean;
+  includeRss?: boolean;
 }
 
-const { centered = false } = Astro.props;
+const { centered = false, includeRss = false } = Astro.props;
 ---
 
 <div class={`social-icons ${centered ? "flex" : ""}`}>
+  { includeRss &&
   <a
   target="_blank"
   href="/rss.xml"
@@ -25,6 +27,7 @@ const { centered = false } = Astro.props;
     </svg>
     <span class="sr-only">RSS Feed</span>
   </a>
+  }
 
   {
     SOCIALS.filter(social => social.active).map(social => (

@@ -14,12 +14,17 @@ const { noMarginTop = false } = Astro.props;
 <footer class={`${noMarginTop ? "" : "mt-auto"}`}>
   <Hr noPadding />
   <div class="footer-wrapper">
-    <Socials centered />
+    <Socials centered includeRss />
+
     <div class="copyright-wrapper">
-      <span>Copyright &#169; {currentYear}</span>
+      <span>&#169; {currentYear}</span>
       <span class="separator">&nbsp;|&nbsp;</span>
-      <span>All rights reserved.</span>
+      <span class="astro">Made with
+        <a href="https://github.com/satnaing/astro-paper">AstroPaper</a>
+      </span>
     </div>
+  </div>
+  <div>
   </div>
 </footer>
 
@@ -40,6 +45,9 @@ const { noMarginTop = false } = Astro.props;
     @apply my-2 flex flex-col items-center whitespace-nowrap sm:flex-row;
   }
   .separator {
-    @apply hidden sm:inline;
+    @apply hidden sm:inline ml-2 mr-2;
+  }
+  .astro a {
+    @apply text-skin-accent;
   }
 </style>
