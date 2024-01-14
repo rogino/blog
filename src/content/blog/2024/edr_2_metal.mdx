@@ -1,7 +1,6 @@
 ---
 title: "Adventures in EDR Part 2: Metal"
-slug: edr_2_metal
-pubDatetime: 2024-01-13T20:00:00.001Z
+pubDatetime: 2024-01-13T20:00:00.000Z
 description: >
   Color spaces, transfer functions and everything else you need to know to
   render EDR content in Metal.
@@ -61,7 +60,7 @@ is a function which maps an input signal into light intensity.
 Like with hearing, humans perceive brightness non-linearly: increasing the brightness
 by some fixed value will be more noticeable in dark areas compared to light areas.
 
-![Comparison between linear and gamma](@assets/blog/2024/edr/linear_gamma_comparison_linear_scale.svg)
+![Comparison between linear and gamma transfer functions](@assets/blog/2024/edr/linear_gamma_comparison_linear_scale.svg)
 
 Hence, if you have a limited bitdepth, 'spending' more on that budget on darker
 areas will reduce the amount of banding perceived.
@@ -95,10 +94,10 @@ still more than the 8-bits typically used for SDR content.
 
 Perceptual quantization is the transfer function I couldn't get working, so I can't
 explain much. It is used by HDR10 and has a massive maximum luminance of
-10,000 nits - in comparison, monitors are in the range of 300–500 nits, and the
-iPhone 15 Pro goes up to 2,000 nits. The transfer function maps directly to
-output luminance and requires additional metadata if you want it to be properly
-tone-mapped.
+10,000 nits. In comparison, monitors are in the range of 300–500 nits, and the
+iPhone 15 Pro only goes up to a maximum of 2,000 nits in HDR mode.
+The transfer function maps directly to output luminance and requires additional
+metadata if you want it to be properly tone-mapped.
 
 ## EDR in Metal
 
@@ -112,8 +111,8 @@ This is pretty simple: check if the screen's potential EDR headroom is larger th
 self.view.window?.screen.potentialEDRHeadroom
 ```
 
-_Headroom_ is the multiple beyond SDR white that the display can output
-a value of `2` means that, under optimum conditions, the content can be
+_Headroom_ is the multiple beyond SDR white that the display can output. For
+example, a value of `2` means that, under optimum conditions, the content can be
 rendered twice as bright as SDR white.
 
 If there is headroom, you can enable EDR rendering by using:
@@ -136,6 +135,7 @@ headrooms observed when the device was at maximum brightness:
 | iPhone 11     | 2                  | ~1           |
 | iPhone 15 Pro | 8                  | ~2           |
 
+Unfortunately, th
 Remember how human vision is not linear? A headroom of even 2x was barely
 noticeable when in a bright environment, which is the environment the feature
 was intended for.
