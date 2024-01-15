@@ -24,7 +24,12 @@ const featuredPosts = sortedPosts.filter(({ data }) => data.featured);
 
     <section id="hero">
       <h1>Hi, I'm Rio, an iOS Developer</h1>
-      <h2>On my blog, I cover iOS development and unrelated topics</h2>
+      <h2>
+        On my blog, I cover iOS development and unrelated topics,
+        <br/>
+        but mostly my journey building
+        <a href="https://composure.rioogino.com">Composure Camera</a>.
+      </h2>
     </section>
     <Hr/>
     {
@@ -94,14 +99,18 @@ const featuredPosts = sortedPosts.filter(({ data }) => data.featured);
     @apply pt-8 pb-8;
   }
   #hero h1 {
-    @apply mb-4 inline-block text-3xl;
+    @apply mb-4 text-3xl text-center;
   }
   #hero h2 {
-    @apply mb-4 inline-block text-xl;
+    @apply mb-4 text-xl text-center;
   }
   #hero p {
     @apply my-2;
   }
+  #hero a {
+    @apply text-skin-accent;
+  }
+
   .social-wrapper {
     @apply mt-4 flex flex-col sm:flex-row sm:items-center;
   }
