@@ -24,19 +24,21 @@ rendering EDR content in Metal.
 
 Back in part 1, I mentioned attempting to render RAW images in Metal since I couldn't
 figure out how to get EDR working until I revisited it while writing this blog post.
-As I already use Metal to render the viewfinder's video preview, I started by
-attempting to render this SDR content in EDR, and quickly realized that this
-could be a useful way of boosting brightness if the user was in a very bright environment.
+As I already use Metal to render [Composure](https://composure.rioogino.com)'s
+viewfinder/video preview, I started by attempting to render this SDR content in
+EDR, and quickly realized that this could be a useful way of boosting brightness
+if the user was in a very bright environment.
 
 The Metal RAW image viewer was shelved due to performance issues and replaced
 with the native SwiftUI implementation, and the EDR live preview ended up being
 almost useless. Despite this, I finished the EDR live preview anyway - mostly
-because I had also spent a lot of time on this.
+because I had also spent a lot of time on this. and learnt a lot about color
+spaces, transfer functions and Metal EDR support in the process.
 
 ## Color Spaces and Transfer Functions
 
-Very roughly, a color space describes a way of mapping some input - often RGB values,
-into a color that can be seen by human eyeballs.
+Very roughly, a color space describes a way of mapping some input vector - often
+RGB values, into a color that can be seen by human eyeballs.
 
 sRGB is the most common color space you will come across, but recent Apple displays
 and cameras now use [Display P3](https://developer.apple.com/videos/play/wwdc2017/821/),
@@ -90,7 +92,7 @@ Hence, HLG is limited to a maximum brightness of 12 times SDR white. The iPhone
 15 Pro has a maximum brightness of 8 times SDR, so at least for now, HLG is
 sufficient to cover the capabilities of iPhone displays.
 
-HLG is backwards-compatible with BT.709 (which is similar to but not the same as
+HLG is backwards-compatible with BT.709 (which is similar but not equivalent to
 sRGB in ways I don't understand): simply ignore the top half of the range,
 clipping it to white.
 
@@ -98,8 +100,8 @@ If you encode SDR content with HLG, you effectively lose one bit of bitdepth.
 However, you will at minimum have 10-bits, so SDR content will cover 9-bits;
 still more than the 8-bits typically used for SDR content.
 
-I couldnt get perceptual quantization to work properly, so I can't
-explain much. It is used by HDR10 and has a massive maximum luminance of
+I couldn't get perceptual quantization working properly, so I can't go into
+much depth. It is used by HDR10 and has a massive maximum luminance of
 10,000 nits. In comparison, monitors are in the range of 300–500 nits, and the
 iPhone 15 Pro only goes up to a maximum of 2,000 nits.
 The transfer function maps directly to output luminance and requires additional
@@ -121,13 +123,10 @@ Headroom is the multiple beyond SDR white that the display can output. For
 example, a value of `2` means that, under optimum conditions, the content can be
 rendered twice as bright as SDR white.
 
-If there is headroom, you can enable EDR rendering by using:
+If there is headroom, you can enable EDR rendering by setting
+`CAMetalLayer.wantsExtendedDynamicRangeContent` to true.
 
-```swift
-CAMetalLayer.wantsExtendedDynamicRangeContent = true
-```
-
-Once set, the `UIScreen.currentEDRHeadroom` ramps up over a few seconds, but
+Once set, `UIScreen.currentEDRHeadroom` will ramp up over a few seconds, but
 there is no guarantee that it will reach the potential headroom. This varies,
 most notably depending on the current (SDR) brightness:
 **when at maximum brightness, the headroom is likely to be very small**.
@@ -167,9 +166,10 @@ The `extendedLinear*` color spaces map `[0, 1]` to SDR content while anything
 beyond that was in HDR land. As such, normalized integer pixel formats can't
 support these linear color spaces.
 
-Quantization error is not an issue, or at least isn't compared to standard 8-bit
-SDR formats: one good thing about floating point formats is that accuracy is high
-for small values and decreases with magnitude, mirroring the behavior of visual perception.
+Quantization error is not an issue (at least when compared to standard 8-bit
+SDR formats): one good thing about floating point formats is that accuracy is high
+for small values and decreases with magnitude, mirroring the behavior of
+human visual perception.
 
 While double the size of `.bgra10a2Unorm`, working in linear space is very easy.
 For example, to map SDR content in `[0, 1]` to HDR, you can simply multiply the
@@ -194,8 +194,8 @@ iOS can do this automatically by setting the `CAMetalLayer.edrMetadata` property
 For HLG, there an easy `.hlg` option, but for PQ, we need to use `.hdr10()`
 options, which require a bunch of metadata which I had no idea how to get.
 
-Even if I set `edrMetadata` to `nil` (the default), PQ directly outputs luminance
-values, not brightness relative to SDR white. As there doesn't seem to be any
+Even if I set `edrMetadata` to `nil`, PQ directly outputs luminance values,
+not brightness relative to SDR white. As there doesn't seem to be any
 way of determining the current display luminance (for either SDR or HDR white
 under the current headroom), I gave up on working on this.
 
@@ -266,11 +266,13 @@ float sdrToEdr(float sample, float edrHeadroom) {
   float maxOut = 0.5 + 0.5 * ((edrHeadroom - 1.0) / (12.0 - 1.0));
 
   // Use the EOTF to transform output pixel values into linear brightness.
-  // This can be moved onto the CPU - calculate on every frame
+  // This can be moved onto the CPU - calculate once per frame
+  // intead of repeating for every fragment
   float maxValue = hlgEOTF(maxOut);
 
   // Apply the inverse EOTF; the OETF
-  // Multiply by maxValue such that `1` will map to `edrHeadroom`
+  // Multiply by maxValue such that `1` will map to `edrHeadroom` after being
+  // re-linearized
   return hlgOETF(linearized * maxValue);
 }
 ```

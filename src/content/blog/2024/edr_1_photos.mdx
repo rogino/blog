@@ -16,6 +16,7 @@ tags:
 
 import BlogVideoPlayer from "@components/BlogVideoPlayer.svelte";
 
+
 If you have a recent iPhone and open Photos.app, you'll probably notice that
 some images seem to 'pop'.
 Look closer, and you may realize that the rest of the UI now looks grey:
@@ -60,9 +61,9 @@ This technique effectively increases the bitdepth of the image, reducing
 the banding that would otherwise make displaying 8-bit images -- the maximum
 bitdepth supported by JPEG -- in HDR unusable.
 
-Since DNG (RAW) files embed JPEG previews and ISO HDR images cannot be supported
-by JPEG files, any RAW or ProRAW files you take will use this technique for the
-foreseeable future.
+Since embedded previews for DNG (RAW) files only supports JPEG and the other
+approach, ISO HDR, cannot be supported by JPEG files, any RAW or ProRAW files
+you take will use this approach for the foreseeable future.
 
 Additionally, even normal HEIC files captured by Apple devices use this type of
 EDR image. Thus, if you want to support EDR for photos taken on iPhones, you
@@ -127,17 +128,17 @@ However, **Adobe also has its own separate, incompatible gain map
 [specification](https://helpx.adobe.com/nz/camera-raw/using/gain-map.html)**
 which is used in Lightroom for HDR exports.
 From their [support page](https://helpx.adobe.com/nz/lightroom-cc/using/hdr-ios.html),
-it seems that only Chrome desktop can view these images -- as of iOS 17, Core
-Image does not support these.
+it seems that only Chrome desktop can view these images -- as of iOS 17, neither
+Photos.app not Core Image supports these.
 However, as the specification is open and well-documented, it seems feasible
 for an individual to implement this.
 
 ## ISO HDR
 
 [ISO HDR](https://developer.apple.com/videos/play/wwdc2023/10181/)
-is a newer method devised by Apple. Currently being standardized as
-[ISO/TS 22028-5:2023](https://www.iso.org/standard/86775.html), this gets rid
-of the separate gain map and natively encodes the image in HDR.
+is a newer method for HDR images being devised by Apple. Currently being
+standardized as [ISO/TS 22028-5:2023](https://www.iso.org/standard/86775.html),
+this gets rid of the separate gain map by natively encodes the image in HDR.
 
 It requires the use of an HDR *transfer function*:
 [hybrid log-gamma](https://en.wikipedia.org/wiki/Hybrid_log%E2%80%93gamma) or
@@ -150,27 +151,25 @@ Additionally, Apple devices currently capture images in Display P3, not BT.2100.
 As such, until Apple switches to using this color space for the camera, this
 method will likely not see widespread use.
 
+HDR videos captured on iPhone (as well as any professional HDR content) already
+uses BT.2100, so it is not a stretch that Apple will switch photos to using this
+color space in the future.
+
 Apple's [HDR sample app](https://developer.apple.com/documentation/uikit/images_and_pdf/supporting_hdr_images_in_your_app)
 saves images in the BT.2100 color space, but I haven't otherwise encountered
 any images which use this color space.
 
-However, the same is not true of video -- HDR videos captured on iPhone, as well as any
-professional HDR content (movies, TV etc.) you see will be using BT.2100 with
-PQ/HLG. As such, it is not a stretch that Apple will switch photos to using this
-color space in the future, especially as Photos.app can already convert images to
-JPEG when sharing for compatibility.
-
-{/*
-This would, however, lead to the loss of backwards compatibility: if you have
+The downside of this approach is the loss of backwards compatibility: if you have
 tried to play HDR video on non-Apple devices or older software, it is likely that
 you have seen these videos play looking washed out or plain wrong: the software
 *must* support the color space and transfer function to display the content
-correctly.
-*/}
+correctly. This can be mitigated: when Apple switched from capturing JPEG to HEIF
+files, iOS and Photos.app gained the ability to convert HEIF images to JPEG
+when sharing to unsupported destinations.
 
-Supporting these images in iOS 17 is easier than supporting tone-mapped HDR:
-just use `UIImage(data: data)`, or even just `Image(name: )` alongside the
-aforementioned `.allowedDynamicRange` modifier.
+Despite the downsides, supporting ISO HDR images in iOS 17 is easier than
+supporting tone-mapped HDR: just use the aforementioned `.allowedDynamicRange`
+modifier with your existing image constructors (e.g. `UIImage(data:)`, `Image(name:)`).
 
 ## RAW
 
@@ -194,6 +193,7 @@ rawFilter.localToneMapAmount    = 0.0
 
 // Must be true for EDR
 rawFilter.isGamutMappingEnabled = true
+// 0 = no EDR, 1 = default EDR, 2 = max EDR
 rawFilter.extendedDynamicRangeAmount = 1.0
 
 let colorSpace = CGColorSpace(CGColorSpace.displayP3_PQ)!
@@ -230,8 +230,8 @@ for EDR.
 
 In Apple's [WDDC session](https://developer.apple.com/videos/play/wwdc2023/10181/)
 and a 2021 [presentation](https://www.color.org/hdr/07-Nicolas_Bonnier.pdf) on
-ISO HDR, it states that BT.2100 is a requirement. As such, it seems like Apple is
-ignoring its own specification and is suporting HDR with Display P3 images.
+ISO HDR, it states that BT.2100 is a requirement. As such, it seems possible
+that Apple is ignoring its own specification by supporting Display P3 images.
 
 ## Conclusion
 
