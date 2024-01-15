@@ -3,7 +3,6 @@ import Tag from "@components/Tag.astro";
 import Datetime from "@components/Datetime.svelte";
 import type { CollectionEntry } from "astro:content";
 import { slugifyStr } from "@utils/slugify";
-import ShareLinks from "@components/ShareLinks.astro";
 import { SITE } from "@config";
 
 export interface Props {
@@ -14,10 +13,6 @@ const { post } = Astro.props;
 
 const {
   title,
-  author,
-  description,
-  ogImage,
-  canonicalURL,
   pubDatetime,
   modDatetime,
   tags,

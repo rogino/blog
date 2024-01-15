@@ -1,12 +1,27 @@
 <script lang="ts">
-  export let source: { src: string, type: string }[]
+  import { SITE } from "./src/config";
+
+  export let source: { src: string, type: string }[];
   export let description: string;
   export let aspectRatio: number = 1.0;
+
+  export let poster: string|undefined;
 
   export let autoplay: boolean = true;
   export let controls: boolean = true;
   export let muted: boolean = true;
   export let loop: boolean = false;
+  export let playsinline: boolean=true;
+
+  let properties = {
+    autoplay,
+    controls,
+    muted,
+    loop,
+    playsinline,
+    poster
+  };
+
 </script>
 <style>
   video {
@@ -18,10 +33,7 @@
 <figure {...$$restProps}>
   <video
     style="--aspect-ratio: {aspectRatio}"
-    autoplay={autoplay}
-    controls={controls}
-    muted={muted}
-    loop={loop}
+    {...properties}
   >
     {#each source as track}
       <source {...track}/>
