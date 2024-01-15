@@ -5,7 +5,7 @@ export const SITE: Site = {
   author: "Rio Ogino",
   desc: "A blog by Rio Ogino covering iOS development and unrelated topics",
   title: "Rio Ogino",
-  ogImage: "astropaper-og.jpg",
+  ogImage: "og.jpg",
   lightAndDarkMode: true,
   postPerPage: 3,
 };
@@ -18,8 +18,8 @@ export const LOCALE = {
 export const LOGO_IMAGE = {
   enable: false,
   svg: true,
-  width: 216,
-  height: 46,
+  width: 40 * (90 / 65),
+  height: 40,
 };
 
 export const SOCIALS: SocialObjects = [

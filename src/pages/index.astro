@@ -11,9 +11,6 @@ import getSortedPosts from "@utils/getSortedPosts";
 import { SOCIALS } from "@config";
 import PostTitleAndContent from "@components/PostTitleAndContent.astro";
 
-import { Image } from "astro:assets";
-import composureMarketingImage from "@assets/blog/2023/og_composure.jpg";
-
 const posts = await getCollection("blog");
 
 const sortedPosts = getSortedPosts(posts);
@@ -26,8 +23,10 @@ const featuredPosts = sortedPosts.filter(({ data }) => data.featured);
   <main id="main-content">
 
     <section id="hero">
-      <h1>A blog on iOS development and unrelated topics</h1>
+      <h1>Hi, I'm Rio, an iOS Developer</h1>
+      <h2>On my blog, I cover iOS development and unrelated topics</h2>
     </section>
+    <Hr/>
     {
       featuredPosts.length > 0 && (
         <>
@@ -92,10 +91,13 @@ const featuredPosts = sortedPosts.filter(({ data }) => data.featured);
 <style>
   /* ===== Hero Section ===== */
   #hero {
-    @apply pt-2;
+    @apply pt-8 pb-8;
   }
   #hero h1 {
     @apply mb-4 inline-block text-3xl;
+  }
+  #hero h2 {
+    @apply mb-4 inline-block text-xl;
   }
   #hero p {
     @apply my-2;
