@@ -5,6 +5,8 @@
   export let pubDatetime: string | Date;
   export let modDatetime: string | Date | undefined | null;
   export let size: "sm" | "lg" = "sm";
+
+  export let includeTime: bool = false;
 </script>
 
 <div class="flex items-center space-x-2 opacity-80" {...$$restProps}>
@@ -30,6 +32,7 @@
     <FormattedDatetime
       pubDatetime={pubDatetime}
       modDatetime={modDatetime}
+      includeTime={includeTime}
     />
   </span>
 </div>

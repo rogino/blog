@@ -3,6 +3,7 @@
 
   export let pubDatetime: string | Date;
   export let modDatetime: string | Date | undefined | null;
+  export let includeTime: Bool = true;
 
   let myDatetime = new Date(modDatetime ? modDatetime : pubDatetime);
 
@@ -19,6 +20,8 @@
 </script>
 
 <time datetime={myDatetime.toISOString()}>{date}</time>
-<span aria-hidden="true"> | </span>
-<span class="sr-only">&nbsp;at&nbsp;</span>
-<span class="text-nowrap">{time}</span>
+{#if includeTime}
+  <span aria-hidden="true"> | </span>
+  <span class="sr-only">&nbsp;at&nbsp;</span>
+  <span class="text-nowrap">{time}</span>
+{/if}
