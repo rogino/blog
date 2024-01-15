@@ -6,6 +6,8 @@
   export let aspectRatio: number = 1.0;
 
   export let poster: string|undefined;
+  /// Value prepended to poster and source URLs
+  export let baseUrl: string = "";
 
   export let autoplay: boolean = true;
   export let controls: boolean = true;
@@ -19,9 +21,13 @@
     muted,
     loop,
     playsinline,
-    poster
+    poster: typeof poster == "string" ? baseUrl + poster : poster
   };
 
+  // https://jakearchibald.com/2022/html-codecs-parameter-for-av1/
+  // https://dmnsgn.github.io/media-codecs
+  // ffprobe -show_streams h265.10.mp4 | grep -e "codec_name" -e "level" -e "profile"
+  // No idea how to determine compatibility level for h265
 </script>
 <style>
   video {
@@ -36,7 +42,7 @@
     {...properties}
   >
     {#each source as track}
-      <source {...track}/>
+      <source src={baseUrl + track.src} type={track.type}/>
     {/each}
   </video>
   <figcaption>

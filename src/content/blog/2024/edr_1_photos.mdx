@@ -21,8 +21,16 @@ some images seem to 'pop'.
 Look closer, and you'll realize that the rest of the UI now looks grey:
 
 <BlogVideoPlayer
-  source={[{ src: "/assets/blog/2024/edr/edr_photos.mp4", type: "video/mp4" }]}
-  poster="/assets/blog/2024/edr/edr_photos.poster.jpg"
+  baseUrl="/assets/blog/2024/edr/edr_photos/"
+  source={[
+    { src: "h265.10.mp4", type: 'video/mp4; codecs="hev1.2.1.H120.b0"' },
+    { src:  "h265.8.mp4", type: 'video/mp4; codecs="hev1.1.1.H120.b0"' },
+    { src:  "av1.10.mp4", type: 'video/mp4; codecs="av01.0.08M.10"' },
+    { src:   "av1.8.mp4", type: 'video/mp4; codecs="av01.0.31M.08"' },
+    { src: "h264.10.mp4", type: 'video/mp4; codecs="avc1.6e0028"' },
+    { src:  "h264.8.mp4", type: 'video/mp4; codecs="avc1.640028"' },
+  ]}
+  poster="poster.jpg"
   description="Video of the Photos app showing a photo of a sunset, with the sun getting brighter as EDR kicks in."
   aspectRatio={16 / 9}
 />

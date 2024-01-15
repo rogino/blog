@@ -279,8 +279,14 @@ the world of color science and learn a little about the complexity of color
 management, representation and encoding.
 
 <BlogVideoPlayer
+  baseUrl="/assets/blog/2024/edr/edr_side_by_side/"
   source={[
-    { src: "/assets/blog/2024/edr/edr_side_by_side.mp4", type: "video/mp4" },
+    { src: "h265.10.mp4", type: 'video/mp4; codecs="hev1.2.1.H150.b0"' },
+    { src:  "h265.8.mp4", type: 'video/mp4; codecs="hev1.1.1.H150.b0"' },
+    { src:  "av1.10.mp4", type: 'video/mp4; codecs="av01.0.12M.10"' },
+    { src:   "av1.8.mp4", type: 'video/mp4; codecs="av01.0.31M.08"' },
+    { src: "h264.10.mp4", type: 'video/mp4; codecs="avc1.6e0032"' },
+    { src:  "h264.8.mp4", type: 'video/mp4; codecs="avc1.640032"' }
   ]}
   poster="/assets/blog/2024/edr/edr_side_by_side.poster.jpg"
   description="Video showing EDR in action. On the left is a phone at low brightness; the
