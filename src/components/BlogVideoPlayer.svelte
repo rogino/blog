@@ -31,7 +31,9 @@
 </script>
 <style>
   video {
-    width: min(100%, calc(70vh * var(--aspect-ratio)));
+    --width: min(100%, calc(70vh * var(--aspect-ratio)));
+    width: var(--width);
+    height: calc(var(--width) / var(--aspect-ratio));
     --aspect-ratio: 1.0;
     margin: 0;
   }
