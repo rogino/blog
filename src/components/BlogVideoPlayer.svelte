@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { SITE } from "./src/config";
-
   export let source: { src: string, type: string }[];
   export let description: string;
   export let aspectRatio: number = 1.0;
