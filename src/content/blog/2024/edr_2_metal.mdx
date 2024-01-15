@@ -77,7 +77,7 @@ DisplayP3 applies the same EOTF function as sRGB, while BT.2020 uses the same
 as BT.709 (the standard for HD TV).
 
 For displaying HDR content in Metal (with BT.2100 or Display P3), there are two
-main contenders: 
+main contenders:
 [hybrid log-gamma](https://en.wikipedia.org/wiki/Hybrid_log%E2%80%93gamma) and
 [perceptual quantization](https://en.wikipedia.org/wiki/Perceptual_quantizer).
 
@@ -100,14 +100,14 @@ If you encode SDR content with HLG, you effectively lose one bit of bitdepth.
 However, you will at minimum have 10-bits, so SDR content will cover 9-bits;
 still more than the 8-bits typically used for SDR content.
 
-I couldn't get perceptual quantization working properly, so I can't go into
-much depth. It is used by HDR10 and has a massive maximum luminance of
+The perceptual quantizer is used by HDR10 and has a massive maximum luminance of
 10,000 nits. In comparison, monitors are in the range of 300–500 nits, and the
 iPhone 15 Pro only goes up to a maximum of 2,000 nits.
-The transfer function maps directly to output luminance and requires additional
-metadata if you want it to be properly tone-mapped.
+The transfer function is supposed to map directly to output luminance, but
+on iOS, the values are actually relative to the current display brightness.
+100 nits is assumed to be SDR white, giving PQ a maximum headroom of 100.
 
-## EDR in Metal
+## HDR in Metal
 
 ### Headroom
 
@@ -123,13 +123,15 @@ Headroom is the multiple beyond SDR white that the display can output. For
 example, a value of `2` means that, under optimum conditions, the content can be
 rendered twice as bright as SDR white.
 
-If there is headroom, you can enable EDR rendering by setting
+If there is headroom, you can enable EDR by setting
 `CAMetalLayer.wantsExtendedDynamicRangeContent` to true.
 
 Once set, `UIScreen.currentEDRHeadroom` will ramp up over a few seconds, but
 there is no guarantee that it will reach the potential headroom. This varies,
 most notably depending on the current (SDR) brightness:
 **when at maximum brightness, the headroom is likely to be very small**.
+Additionally, even the same headroom is much less noticeable at higher brightness
+to our eyes.
 
 The following table shows the maximum potential headroom, and then the
 headrooms observed when the device was at maximum brightness:
@@ -140,14 +142,14 @@ headrooms observed when the device was at maximum brightness:
 | iPhone 11     | 2                  | ~1           |
 | iPhone 15 Pro | 8                  | ~2           |
 
-This of course, means that using EDR to boost the maximum brightness does not
-work well. Unfortunately, I didn't realize this until pretty late into development
+This of course, means that using EDR to boost the maximum brightness barely
+work. Unfortunately, I didn't realize this until pretty late into development
 as I was developing and testing inside where I never needed to use maximum brightness.
 
 ### Color Space and Pixel Format
 
-According to this [WWDC 2022](https://developer.apple.com/videos/play/wwdc2022/10113/?time=755)
-session, HDR rendering in Metal is only supported by two pixel formats and a few color spaces:
+According to this [WWDC 2022 session](https://developer.apple.com/videos/play/wwdc2022/10113/?time=755),
+EDR rendering in Metal is only supported by two pixel formats and a few color spaces:
 
 | `.rgba16Float` (64-bit)    | `.bgra10a2Unorm` (32-bit) |
 | -------------------------- | ------------------------- |
@@ -162,9 +164,10 @@ session, HDR rendering in Metal is only supported by two pixel formats and a few
 `.rgba16Float` uses `half`s for each component, requiring 64-bits per pixel,
 doubling the storage requirements compared to a standard 8-bit texture.
 
-The `extendedLinear*` color spaces map `[0, 1]` to SDR content while anything
-beyond that was in HDR land. As such, normalized integer pixel formats can't
-support these linear color spaces.
+The `extendedLinear*` color spaces map
+[`[0, 1]` to SDR content](https://developer.apple.com/videos/play/wwdc2021/10161?time=687)
+while anything beyond that is in HDR land. As such, normalized integer pixel
+formats can't support these linear color spaces.
 
 Quantization error is not an issue (at least when compared to standard 8-bit
 SDR formats): one good thing about floating point formats is that accuracy is high
@@ -190,16 +193,15 @@ clipped, which can be very ugly and distracting. *Tone-mapping* is used to reduc
 the dynamic range of the content to match that of the display in a
 natural-looking way.
 
-iOS can do this automatically by setting the `CAMetalLayer.edrMetadata` property.
-For HLG, there an easy `.hlg` option, but for PQ, we need to use `.hdr10()`
-options, which require a bunch of metadata which I had no idea how to get.
+iOS can do this automatically, albeit at the cost of additional processing,
+by setting the `CAMetalLayer.edrMetadata` property. For HLG, there an easy `.hlg`
+option, but for PQ, we need to use `.hdr10()` options, which require a bunch of
+parameters which I had no idea how to set.
 
-Even if I set `edrMetadata` to `nil`, PQ directly outputs luminance values,
-not brightness relative to SDR white. As there doesn't seem to be any
-way of determining the current display luminance (for either SDR or HDR white
-under the current headroom), I gave up on working on this.
+#### Hybrid-Log Gamma
 
-So PQ it was; I used `displayP3_PQ` as the iOS camera supports capture in the
+HLG was what I ended up using as I struggled too much with PQ initially. I
+used `displayP3_HLG` rather than `itur_2100_HLG` as the iOS camera uses the
 [P3 color space](https://developer.apple.com/documentation/avfoundation/avcapturecolorspace/p3_d65),
 removing the need for an additional color space transform.
 
@@ -207,9 +209,9 @@ In the shader, the process is as follows:
 
 - I receive an image in the DisplayP3 color space
 - I apply the sRGB/Display P3 gamma transform (EOTF), linearizing the image
-- I apply the HLG _OETF_ transform
+- I apply the HLG *OETF* transform
 
-Then, at some point along the chain, the HLG _EOTF_ transform will be applied,
+Then, at some point along the chain, the HLG *EOTF* transform will be applied,
 re-linearizing the image for display.
 
 While I initially used the `.hlg` tone-mapping and simply mapped the SDR content
@@ -276,6 +278,46 @@ float sdrToEdr(float sample, float edrHeadroom) {
   return hlgOETF(linearized * maxValue);
 }
 ```
+
+#### Perceptual Quantizer
+
+PQ maps input values directly to output luminance, but I until writing this
+post, I couldn't figure out a way of determining the PQ values for SDR white or
+the EDR headroom.
+
+This WWDC 2021 session on
+[HDR rendering](https://developer.apple.com/videos/play/wwdc2021/10161?time=1828),
+states that PQ content can rendered on a floating-point EDR texture by applying
+the EOTF to linearize the content and then dividing by 100 nits to map reference
+white to 1.0.
+
+[Later on](https://developer.apple.com/videos/play/wwdc2021/10161?time=1871),
+they describe the process of determining the brightest pixel value:
+
+```swift
+var linearMaxComponents: [CGFloat] = [edrHeadroom, edrHeadroom, edrHeadroom, 1.0]
+guard let linearMaxColor = CGColor(
+    colorSpace: .init(name: CGColorSpace.extendedLinearDisplayP3)!,
+    components: &linearMaxComponents
+), let pqMaxColor = linearMaxColor.converted(
+    to: .init(name: CGColorSpace.displayP3_PQ), // or itur_2100_PQ
+    intent: .defaultIntent,
+    options: nil
+), let pqMax = pqMaxColor.components?.first else {
+    return
+}
+```
+
+Applying the PQ EOTF function to this value confirms that iOS simply treats
+a transformed PQ-encoded value of 100 (nits) as SDR white, regardless of the actual
+screen brightness.
+
+I wondered how PQ could output luminance directly while still allowing the user
+to adjust the brightness of their content, and the answer seems to be that it
+doesn't; Apple simply treats PQ output as being relative to SDR white.
+
+Regardless, this makes mapping SDR content to EDR with PQ easy: multiply the
+linear value by 100 times the headroom, then apply the OETF.
 
 ## Conclusion
 

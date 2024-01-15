@@ -16,7 +16,6 @@ tags:
 
 import BlogVideoPlayer from "@components/BlogVideoPlayer.svelte";
 
-
 If you have a recent iPhone and open Photos.app, you'll probably notice that
 some images seem to 'pop'.
 Look closer, and you may realize that the rest of the UI now looks grey:
@@ -42,15 +41,15 @@ content alongside SDR content.
 In building my camera app [Composure Camera](https://composure.rioogino.com/),
 I wanted to do the same thing, and ended up doing a deep dive into the world of EDR.
 
-In part 1, I cover how to display and render EDR photos in SwiftUI and UIKit
+In part 1, I cover how to display and render HDR photos in SwiftUI and UIKit
 while in [part 2](/posts/2024/edr_2_metal), I cover EDR rendering with Metal
 and go deep into color spaces and transfer functions.
 
 ## Gain Map HDR
 
-Gain map HDR is a backwards-compatible way of supporting EDR in photos by
+Gain map HDR is a backwards-compatible way of supporting HDR in photos by
 embedding a separate *gain map* image alongside the primary SDR image. iPhones have
-supported this since 2020, and this is the most common form of EDR photo you will
+supported this since 2020, and this is the most common form of HDR photo you will
 see today.
 
 The gain map is a lower-resolution, single-channel bitmap which is used to adjust
@@ -66,7 +65,7 @@ approach, ISO HDR, cannot be supported by JPEG files, any RAW or ProRAW files
 you take will use this approach for the foreseeable future.
 
 Additionally, even normal HEIC files captured by Apple devices use this type of
-EDR image. Thus, if you want to support EDR for photos taken on iPhones, you
+HDR image. Thus, if you want to support HDR for photos taken on iPhones, you
 will have to implement support for this.
 
 Starting in iOS 17, Apple has finally provided an
@@ -93,7 +92,7 @@ guard let cgImage = ciContext.createCGImage(
 ) else { return }
 ```
 
-in order to render image data to an HDR texture. I go into more detail on color
+in order to render image data to an EDR texture. I go into more detail on color
 spaces in part 2.
 
 This process is more expensive than the standard `ciContext.createCGImage(_:from)`
@@ -223,22 +222,17 @@ I'm not exactly sure why: in the documentation for
 it implies that the image must have an HDR color space and that `BT.2100` is
 the only one.
 
-If `displayP3_PQ` didn't work, I would have assumed that EDR support for RAW
-(as well as gain map HDR, which also works with P3) is achieved by
-converting the color space to BT.2100 and embedding the necessary metadata
-for EDR.
-
-In Apple's [WDDC session](https://developer.apple.com/videos/play/wwdc2023/10181/)
+Given that Apple's [WDDC session](https://developer.apple.com/videos/play/wwdc2023/10181/)
 and a 2021 [presentation](https://www.color.org/hdr/07-Nicolas_Bonnier.pdf) on
-ISO HDR, it states that BT.2100 is a requirement. As such, it seems possible
-that Apple is ignoring its own specification by supporting Display P3 images.
+ISO HDR state that BT.2100 is a requirement, it seems that although iOS renders
+ISO HDR images with EDR, it is not a requirement for EDR rendering of images.
 
 ## Conclusion
 
-Although iOS 17 finally introduces native support for displaying EDR images,
+Although iOS 17 finally introduces native support for displaying HDR images,
 we are still in the early days of this technology, with three separate ways of
-supporting EDR. However, given that trillions of iPhone photos have been captured
-with Apple's HDR gain map technique, this will be the primary type of EDR you should
+supporting HDR. However, given that trillions of iPhone photos have been captured
+with Apple's HDR gain map technique, this will be the primary type of HDR you should
 support today.
 
 Adobe's version, which has an open specification and lack of proprietary EXIF tags,
