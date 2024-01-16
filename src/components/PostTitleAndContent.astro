@@ -3,7 +3,6 @@ import Tag from "@components/Tag.astro";
 import Datetime from "@components/Datetime.svelte";
 import type { CollectionEntry } from "astro:content";
 import { slugifyStr } from "@utils/slugify";
-import { SITE } from "@config";
 
 export interface Props {
   post: CollectionEntry<"blog">;

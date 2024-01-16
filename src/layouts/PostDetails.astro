@@ -3,10 +3,8 @@ import Layout from "@layouts/Layout.astro";
 import Header from "@components/Header.astro";
 import Footer from "@components/Footer.astro";
 import Tag from "@components/Tag.astro";
-import Datetime from "@components/Datetime.svelte";
 import type { CollectionEntry } from "astro:content";
 import { slugifyStr } from "@utils/slugify";
-import ShareLinks from "@components/ShareLinks.astro";
 import PostTitleAndContent from "@components/PostTitleAndContent.astro";
 
 export interface Props {
@@ -22,8 +20,7 @@ const {
   ogImage,
   canonicalURL,
   pubDatetime,
-  modDatetime,
-  tags,
+  modDatetime
 } = post.data;
 
 const ogImageUrl = typeof ogImage === "string" ? ogImage : ogImage?.src;
@@ -61,23 +58,6 @@ const layoutProps = {
   <main id="main-content">
 
     <PostTitleAndContent post={post}/>
-<!--
-  <h1 transition:name={slugifyStr(title)} class="post-title">{title}</h1>
-    <Datetime
-      pubDatetime={pubDatetime}
-      modDatetime={modDatetime}
-      size="lg"
-      className="my-2"
-    />
-    <article id="article" role="article" class="prose mx-auto mt-8 max-w-3xl">
-      <Content />
-    </article>
-
-    <ul class="my-8">
-      {tags.map(tag => <Tag tag={slugifyStr(tag)} />)}
-    </ul>
-    -->
-
     <div
       class="flex flex-col-reverse items-center justify-between gap-6 sm:flex-row-reverse sm:items-end sm:gap-4"
     >
@@ -92,8 +72,6 @@ const layoutProps = {
         </svg>
         <span>Back to Top</span>
       </button>
-
-      <!-- <ShareLinks /> -->
     </div>
   </main>
   <Footer />
