@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { getCollection, type CollectionEntry } from "astro:content";
 import { generateOgImageForPost } from "@utils/generateOgImages";
-import { slugifyStr } from "@utils/slugify";
+import sharp from "sharp";
 
 export async function getStaticPaths() {
   const posts = await getCollection("blog").then(p =>
@@ -9,12 +9,15 @@ export async function getStaticPaths() {
   );
 
   return posts.map(post => ({
-    params: { slug: slugifyStr(post.data.title) },
+    params: { slug: post.slug },
     props: post,
   }));
 }
 
-export const GET: APIRoute = async ({ props }) =>
-  new Response(await generateOgImageForPost(props as CollectionEntry<"blog">), {
-    headers: { "Content-Type": "image/png" },
+export const GET: APIRoute = async ({ props }) => {
+  let png = await generateOgImageForPost(props as CollectionEntry<"blog">);
+  let jpeg = await sharp(png).jpeg({ mozjpeg: true, quality: 85 }).toBuffer();
+  return new Response(jpeg, {
+    headers: { "Content-Type": "image/jpeg" },
   });
+};
