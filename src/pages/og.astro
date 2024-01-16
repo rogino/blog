@@ -1,0 +1,12 @@
+---
+import { getCollection } from "astro:content";
+import type { CollectionEntry } from "astro:content";
+import PostOgImage from "./../utils/og-templates/post";
+
+const posts = await getCollection("blog");
+
+---
+<div style="width: 1200px; height: 630px; border: 1px solid red; transform: scale(0.5); transform-origin: top left; font-family: 'Open Sans'">
+  <PostOgImage post={posts[0]}/>
+</div>
+

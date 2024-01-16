@@ -1,94 +1,91 @@
 import { SITE } from "@config";
 import type { CollectionEntry } from "astro:content";
+import { readFileSync } from "fs";
+import path from "path";
 
-export default (post: CollectionEntry<"blog">) => {
+const imageSrc64 = (src: string, format: string): string => {
+  // dev: @/fs/absolute/path/to/file
+  // og: relative path, base path being $process/dist/ (not sure how to get 'dist')
+  let mime = format + (format == "svg" ? "+xml" : "");
+  return `data:image/${mime};base64,${readFileSync(
+    path.join(process.cwd(), src)
+  ).toString("base64")}`;
+};
+
+// Must also be used in at least one page
+
+const logoSrc = imageSrc64("og-assets/RO.squircle.svg", "svg");
+const backgroundSrc = imageSrc64("og-assets/og.post.logoless.png", "png");
+
+export default ({ post }: { post: CollectionEntry<"blog"> }) => {
   return (
     <div
       style={{
-        background: "#fefbfb",
+        position: "relative",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
         width: "100%",
         height: "100%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
       }}
     >
-      <div
+      <img
+        src={backgroundSrc}
         style={{
           position: "absolute",
-          top: "-1px",
-          right: "-1px",
-          border: "4px solid #000",
-          background: "#ecebeb",
-          opacity: "0.9",
-          borderRadius: "4px",
-          display: "flex",
-          justifyContent: "center",
-          margin: "2.5rem",
-          width: "88%",
-          height: "80%",
+          width: "100%",
+          height: "100%",
+          top: "0",
+          bottom: "0",
+          left: "0",
+          right: "0",
+          objectFit: "cover",
+          objectPosition: "bottom",
         }}
       />
-
       <div
         style={{
-          border: "4px solid #000",
-          background: "#fefbfb",
-          borderRadius: "4px",
-          display: "flex",
-          justifyContent: "center",
-          margin: "2rem",
-          width: "88%",
+          width: "85%",
           height: "80%",
+          boxSizing: "border-box",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          zIndex: 1,
         }}
       >
+        <p
+          style={{
+            fontSize: 72,
+            maxHeight: "84%",
+            overflow: "hidden",
+            margin: 0,
+          }}
+        >
+          {post.data.title}
+        </p>
         <div
           style={{
             display: "flex",
-            flexDirection: "column",
             justifyContent: "space-between",
-            margin: "20px",
-            width: "90%",
-            height: "90%",
+            alignItems: "center",
+            width: "100%",
+            marginBottom: "8px",
+            fontSize: 28,
           }}
         >
-          <p
+          <img
+            src={logoSrc}
             style={{
-              fontSize: 72,
-              fontWeight: "bold",
-              maxHeight: "84%",
-              overflow: "hidden",
+              width: "100px",
+              height: "100px",
+              transform: "rotate(-15deg)",
+              /* filter: "drop-shadow(5px 10px 5px #597d8f)", */
             }}
-          >
-            {post.data.title}
-          </p>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              width: "100%",
-              marginBottom: "8px",
-              fontSize: 28,
-            }}
-          >
-            <span>
-              by{" "}
-              <span
-                style={{
-                  color: "transparent",
-                }}
-              >
-                "
-              </span>
-              <span style={{ overflow: "hidden", fontWeight: "bold" }}>
-                {post.data.author}
-              </span>
-            </span>
-
-            <span style={{ overflow: "hidden", fontWeight: "bold" }}>
-              {SITE.title}
-            </span>
-          </div>
+          />
+          <span style={{ overflow: "hidden", fontWeight: "600" }}>
+            {SITE.title}
+          </span>
         </div>
       </div>
     </div>

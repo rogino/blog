@@ -1,26 +1,13 @@
 import satori, { type SatoriOptions } from "satori";
 import { Resvg } from "@resvg/resvg-js";
 import { type CollectionEntry } from "astro:content";
+import { readFileSync } from "fs";
+
+const fontPathRegular = "og-assets/font/OpenSans-Regular.ttf";
+const fontPathBold = "og-assets/font/OpenSans-SemiBold.ttf";
+
 import postOgImage from "./og-templates/post";
 import siteOgImage from "./og-templates/site";
-
-const fetchFonts = async () => {
-  // Regular Font
-  const fontFileRegular = await fetch(
-    "https://www.1001fonts.com/download/font/ibm-plex-mono.regular.ttf"
-  );
-  const fontRegular: ArrayBuffer = await fontFileRegular.arrayBuffer();
-
-  // Bold Font
-  const fontFileBold = await fetch(
-    "https://www.1001fonts.com/download/font/ibm-plex-mono.bold.ttf"
-  );
-  const fontBold: ArrayBuffer = await fontFileBold.arrayBuffer();
-
-  return { fontRegular, fontBold };
-};
-
-const { fontRegular, fontBold } = await fetchFonts();
 
 const options: SatoriOptions = {
   width: 1200,
@@ -28,16 +15,16 @@ const options: SatoriOptions = {
   embedFont: true,
   fonts: [
     {
-      name: "IBM Plex Mono",
-      data: fontRegular,
-      weight: 400,
+      name: "Open Sans",
+      data: readFileSync(fontPathRegular),
       style: "normal",
+      weight: 400,
     },
     {
-      name: "IBM Plex Mono",
-      data: fontBold,
-      weight: 600,
+      name: "Open Sans",
+      data: readFileSync(fontPathBold),
       style: "normal",
+      weight: 600,
     },
   ],
 };
@@ -49,7 +36,7 @@ function svgBufferToPngBuffer(svg: string) {
 }
 
 export async function generateOgImageForPost(post: CollectionEntry<"blog">) {
-  const svg = await satori(postOgImage(post), options);
+  const svg = await satori(postOgImage({ post }), options);
   return svgBufferToPngBuffer(svg);
 }
 
