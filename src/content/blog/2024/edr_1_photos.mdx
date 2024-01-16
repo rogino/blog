@@ -60,6 +60,17 @@ This technique effectively increases the bitdepth of the image, reducing
 the banding that would otherwise make displaying 8-bit images -- the maximum
 bitdepth supported by JPEG -- in HDR unusable.
 
+<figure>
+  ![Three versions of the same image. Left: base, darkened color image.
+  Middle: gain map, monochrome brightness modifier. Right: final image more
+  contrast and brighter highlights. The image is of a dramatic sky with dark
+  clouds and sunbeams, with trees and a parking lot in the foreground
+  ](@assets/blog/2024/edr/gainmap_example.jpg)
+  <figcaption>
+    SDR visualization of how the gain map is combined with to create the HDR image.
+  </figcaption>
+</figure>
+
 Since embedded previews for DNG (RAW) files only supports JPEG and the other
 approach, ISO HDR, cannot be supported by JPEG files, any RAW or ProRAW files
 you take will use this approach for the foreseeable future.
