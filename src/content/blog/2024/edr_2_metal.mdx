@@ -69,7 +69,9 @@ by some fixed value will be more noticeable in dark areas compared to light area
 ![Comparison between linear and gamma transfer functions](@assets/blog/2024/edr/linear_gamma_comparison_linear_scale.svg)
 
 Hence, if you have a limited bitdepth, 'spending' more on that budget on darker
-areas will reduce the amount of banding perceived.
+areas will reduce the amount of banding perceived. If you want to learn more about this,
+this [10 part series](https://www.thebroadcastbridge.com/content/entry/15248/is-gamma-still-needed-part-1)
+covers the history of gamma, its issues and alternatives.
 
 The sRGB gamma transfer function, [roughly](https://www.color.org/srgb.pdf) `γ=2.2`,
 raises values to the power of 2.2 to convert pixel values to brightness.
@@ -162,17 +164,19 @@ EDR rendering in Metal is only supported by two pixel formats and a few color sp
 ### `.rgba16Float`
 
 `.rgba16Float` uses `half`s for each component, requiring 64-bits per pixel,
-doubling the storage requirements compared to a standard 8-bit texture.
+doubling the storage requirements compared to a standard 8-bit texture. This is
+the pixel format used by iOS (and macOS)
+[internally](https://developer.apple.com/videos/play/wwdc2021/10161/?time=607)
+when EDR is enabled.
 
 The `extendedLinear*` color spaces map
 [`[0, 1]` to SDR content](https://developer.apple.com/videos/play/wwdc2021/10161?time=687)
 while anything beyond that is in HDR land. As such, normalized integer pixel
 formats can't support these linear color spaces.
 
-Quantization error is not an issue (at least when compared to standard 8-bit
-SDR formats): one good thing about floating point formats is that accuracy is high
-for small values and decreases with magnitude, mirroring the behavior of
-human visual perception.
+Quantization error is not an issue: one useful property of floating point formats
+is that accuracy is high for small values and decreases with magnitude, mirroring
+the behavior of human visual perception.
 
 While double the size of `.bgra10a2Unorm`, working in linear space is very easy.
 For example, to map SDR content in `[0, 1]` to HDR, you can simply multiply the
@@ -196,7 +200,7 @@ natural-looking way.
 iOS can do this automatically, albeit at the cost of additional processing,
 by setting the `CAMetalLayer.edrMetadata` property. For HLG, there an easy `.hlg`
 option, but for PQ, we need to use `.hdr10()` options, which require a bunch of
-parameters which I had no idea how to set.
+parameters which I couldn't figure out how to set.
 
 #### Hybrid-Log Gamma
 
@@ -317,7 +321,11 @@ to adjust the brightness of their content, and the answer seems to be that it
 doesn't; Apple simply treats PQ output as being relative to SDR white.
 
 Regardless, this makes mapping SDR content to EDR with PQ easy: multiply the
-linear value by 100 times the headroom, then apply the OETF.
+linear value by 100 times the headroom, then apply the OETF. If you instead
+use system tone mapping, `opticalOutputScale` of the `CAEDRMetadata.hdr10`
+constructors should be
+[set to 100](https://developer.apple.com/videos/play/wwdc2022/10113/?time=1065),
+although I'm unsure what the other properties should be.
 
 ## Conclusion
 
