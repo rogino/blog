@@ -1,0 +1,130 @@
+---
+title: "Fixed-width, Dynamically-sized, One-line Text Views in SwiftUI"
+pubDatetime: 2024-02-06T00:00:00.000Z
+description: >
+  Creating fixed-width text views while supporting dynamic text scaling
+  for space-constrained UIs.
+featured: false
+draft: false
+tags:
+  - ios
+  - swift
+  - swiftui
+  - ui
+  - accessibility
+---
+
+import BlogVideoPlayer from "@components/BlogVideoPlayer.svelte";
+
+While building my [camera app](https://composure.rioogino.com), I had several
+UI elements with text labels whose width could change, the most
+prominent being the current exposure values (e.g. current ISO, shutter speed):
+
+![Image of the Composure app's exposure controls UI](@assets/blog/2024/fixed_width_text/composure.png)
+
+Although it currently uses percentage-based layouts, I initially relied on
+SwiftUI's default behaviors to allocate the proper amount of space to each
+sub-view (e.g. auto/manual, label/value pairs). However, I ran into an annoying
+problem: as the ISO or shutter speed changed, the **width of the text values
+could change, causing a re-layout of the entire exposure view.**
+
+As I did not want to hard-code widths - something that would need to consider
+Dynamic Type, screen width and available height, my initial solution was a
+`ZStack` with a hidden text view containing the widest text that would be displayed:
+
+```swift
+ZStack(alignment: .topLeading) {
+  // Widest text that will be displayed
+  Text("1/1000s")
+    .hidden()
+
+  // The actual shutter speed
+  Text("1/5s")
+}
+.monospaced()
+```
+
+<figure>
+  ![Screenshot showing 'hidden' and actual text', with a border outlining the hidden text](@assets/blog/2024/fixed_width_text/zstack.png)
+  <figcaption>
+    ZStack containing 'hidden' (transparent red) text and the actual displayed text.
+  </figcaption>
+</figure>
+
+Unfortunately, at larger Dynamic Type sizes, the text becomes so large that it
+doesn't fit on one line:
+
+![Screenshot showing the 'hidden' text being rendered over multiple lines](@assets/blog/2024/fixed_width_text/zstack_large.png)
+
+Adding `.lineLimit(1)` simply truncates the text:
+
+![Screenshot showing the 'hidden' text being truncated with an ellipsis](@assets/blog/2024/fixed_width_text/zstack_line_limit.png)
+
+[`.minimumScaleFactor(_:)`](https://developer.apple.com/documentation/swiftui/view/minimumscalefactor(_:))
+allows the text to shrink to fit in the available space. This seemed perfect
+until I realized that it gets applied to each text view *independently*:
+
+<BlogVideoPlayer
+  baseUrl="/assets/blog/2024/fixed_width_text/zstack_minimum_scale_factor/"
+  source={[
+    { src: "h264.mp4", type: "video/mp4" }
+  ]}
+  poster="poster.png"
+  description="When the visible text is narrower than the scaled hidden text,
+  the visible text does not need to get scaled down, so it is causes the
+  ZStack's height to increase. Only when the visible text gets wider does it
+  match the scale factor of the hidden text."
+  aspectRatio={780/330}
+  loop={true}
+  controls={false}
+/>
+
+While this does succeed in creating a fixed-width view, the height and font
+size will still vary with the width of the displayed text. After several
+random, half-hearted attempts, I stumbled across the technique of using an
+overlay.
+
+In an overlay, the contents are constrained to the size of the parent view
+(unless the `.fixedSize` modifier is used). Thus, if `minimiumScaleFactor`
+is applied to the hidden text, it will shrink both it and the overlay:
+
+- The hidden text is *width-constrained* (and/or height-constrained)
+- Scaling is applied to shrink the hidden text. This reduces the view size in
+  *both* dimensions
+- The text in the overlay is now *height-constrained*
+- Scaling is applied to shrink the overlay text, making the heights match
+
+As the heights match, the scaling factors of the two text views must be equal,
+ensuring that the font size of the text always matches that of the hidden.
+
+```swift
+Text("1/1000s")
+    .hidden()
+    .overlay {
+        Text("1/5s")
+            .frame(maxWidth: .infinity,
+                   maxHeight: .infinity,
+                   alignment: .leading)
+    }
+    .lineLimit(1)
+    .minimumScaleFactor(0.4)
+    .accessibilityLabel("1/5")
+```
+
+<BlogVideoPlayer
+  baseUrl="/assets/blog/2024/fixed_width_text/overlay/"
+  source={[
+    { src: "h264.mp4", type: "video/mp4" }
+  ]}
+  poster="poster.png"
+  description="The visible text stays the same size as the 'hidden' (red) text.
+  When it reaches its max width, both views are scaled by the same amount to fit.
+  The blue text is rendered at the native text size."
+  aspectRatio={1060/340}
+  loop={true}
+  controls={false}
+/>
+
+A frame modifier with `alignment` is used to ensure that the text does not get
+centered, and finally, an accessibility label is added to ensure that VoiceOver
+reads the actual, not hidden text.
